@@ -93,7 +93,7 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 
 	while(1)
 	{
-		if (progress_status == is_stopped)
+		if ((progress_status == is_stopped) || (progress_status == complete))
 		{
 			closesocket(sockConn);
 			closesocket(sockRrv);

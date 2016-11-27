@@ -297,6 +297,8 @@ void CDialogDlg::InitVariable()
 	voxel_x.clear();
 	voxel_y.clear();
 	voxel_z.clear();
+
+	progress_status == is_stopped;
 }
 bool CDialogDlg::BuildConnection(SOCKET &sockRrv, SOCKET &sockConn)
 {
