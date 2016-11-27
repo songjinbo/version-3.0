@@ -95,6 +95,8 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 	{
 		if (progress_status == is_stopped)
 		{
+			closesocket(sockConn);
+			closesocket(sockRrv);
 			get_image_status = get_image_is_stopped;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
