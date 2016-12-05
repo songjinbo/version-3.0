@@ -78,6 +78,7 @@ public:
 	double m_dfinish_frames;
 	double m_drunning_time;
 	afx_msg void OnBnClickedStop();
+	double m_drece_frames;
 };
 
 enum ProgressStatus

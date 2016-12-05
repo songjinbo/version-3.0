@@ -52,6 +52,7 @@ extern CCriticalSection critical_rawdata;
 extern vector<Mat> vec_depth;
 extern vector<Mat> vec_left;
 extern vector<Position> vec_position;
+extern int rece_count;
 
 extern volatile ProgressStatus progress_status;//标志进程的运行状态，0是暂停，1是进行
 volatile get_image_ret_code get_image_status = get_image_is_running; //标志这一GetImage函数是否已经结束
@@ -127,7 +128,7 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			continue;
 		}
-
+		rece_count++;
 		std::memcpy(depth_image.data, data.depth, WIDTH*HEIGHT * 2);
 		std::memcpy(left_image.data, data.left, WIDTH*HEIGHT);
 		position.pitch = data.attitude.pitch;

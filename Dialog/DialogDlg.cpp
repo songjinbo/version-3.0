@@ -72,6 +72,7 @@ CDialogDlg::CDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_dstartz(0)
 	, m_drunning_time(0)
 	, m_dfinish_frames(0)
+	, m_drece_frames(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -97,6 +98,7 @@ void CDialogDlg::DoDataExchange(CDataExchange* pDX)
 	//  DDX_Text(pDX, IDC_FINISH_FRAMES, m_drunning_time);
 	DDX_Text(pDX, IDC_FINISH_FRAMES, m_dfinish_frames);
 	DDX_Text(pDX, IDC_RUNNING_TIME, m_drunning_time);
+	DDX_Text(pDX, IDC_RECE_FRAMES, m_drece_frames);
 }
 
 BEGIN_MESSAGE_MAP(CDialogDlg, CDialogEx)
@@ -230,6 +232,7 @@ CCriticalSection critical_rawdata;//控制vec_depth、vec_left和vec_position的访问
 vector<Mat> vec_depth;
 vector<Mat> vec_left;
 vector<Position> vec_position;
+int rece_count = 0;
 
 //getvoxel线程与pathplan线程的接口变量
 vector<double> voxel_x; //GetVoxelThread的输出,PathPlanThread的输入
@@ -293,6 +296,7 @@ void CDialogDlg::InitVariable()
 	vec_depth.clear();
 	vec_left.clear();
 	vec_position.clear();
+	rece_count = 0;
 	//getvoxel与pathplan的接口
 	voxel_x.clear();
 	voxel_y.clear();
@@ -370,7 +374,8 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_YAW)->SetFont(&poseFont);
 	GetDlgItem(IDC_RUNNING_TIME)->SetFont(&poseFont);
 	GetDlgItem(IDC_FINISH_FRAMES)->SetFont(&poseFont);
-	
+	GetDlgItem(IDC_RECE_FRAMES)->SetFont(&poseFont);
+
 	//设置静态文本框的文字格式
 	staticFont.CreateFont(18, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Arial"));
 	GetDlgItem(IDC_STATIC_X)->SetFont(&staticFont);
@@ -461,6 +466,7 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
 		m_drunning_time = time;
 		m_dfinish_frames = count_voxel_file-1;
+		m_drece_frames = rece_count;
 		UpdateData(FALSE);
 	}
 	return 1;
@@ -539,6 +545,7 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
 		m_drunning_time = time;
 		m_dfinish_frames = count_voxel_file-1;
+		m_drece_frames = rece_count;
 		UpdateData(FALSE);
 	}
 	else if (wParam == no_path_accessible)
@@ -556,6 +563,7 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
 		m_drunning_time = time;
 		m_dfinish_frames = count_voxel_file-1;
+		m_drece_frames = rece_count;
 		UpdateData(FALSE);
 	}
 
