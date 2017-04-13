@@ -44,8 +44,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\UAV\DJI\sdk\Guidance-SDK-master\include;E:\songjinbo\opencv\build\include;$(IncludePath)</IncludePath>
-    <LibraryPath>E:\songjinbo\opencv\build\x86\vc12\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>..\Guidance\include;..\opencv\include;..\octomap\include;$(IncludePath)</IncludePath>
+    <LibraryPath>..\opencv\lib;..\octomap\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -53,6 +53,7 @@
     <LibraryPath>..\octomap\lib;..\opencv\lib;..\SkinSharp;..\opengl\lib;$(LibraryPath)</LibraryPath>
     <TargetName>Dialog</TargetName>
     <OutDir>$(SolutionDir)\output\</OutDir>
+    <ExecutablePath>..\output;$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -61,10 +62,12 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>MD_octomap.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -130,6 +133,7 @@
     <ClCompile Include="PathPlan.src\Node3D.cpp" />
     <ClCompile Include="PathPlan.src\Star.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="PathPlanThread.cpp" />
     <ClCompile Include="stdafx.cpp">
