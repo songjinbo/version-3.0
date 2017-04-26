@@ -46,7 +46,7 @@ END_MESSAGE_MAP()
 using namespace cv;
 using namespace std;
 
-extern SOCKET sockConn, sockRrv;
+extern SOCKET sockConn;
 
 extern CCriticalSection critical_rawdata;
 extern vector<Mat> vec_depth;
@@ -97,7 +97,7 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 		if ((progress_status == is_stopped) || (progress_status == complete))
 		{
 			closesocket(sockConn);
-			closesocket(sockRrv);
+			//closesocket(sockRrv);
 			get_image_status = get_image_is_stopped;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
@@ -108,7 +108,7 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 		if (ret < 0)
 		{
 			closesocket(sockConn);
-			closesocket(sockRrv);
+			//closesocket(sockRrv);
 			get_image_status = receive_error;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
@@ -116,7 +116,7 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 		if (!strncmp(data_stream, "send error!", 11))
 		{
 			closesocket(sockConn);
-			closesocket(sockRrv);
+			//closesocket(sockRrv);
 			get_image_status = send_error;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
@@ -152,10 +152,15 @@ int RecvData(SOCKET sock, void *buf, int size)
 	int sum = size;
 	int err;
 	int index = 0;
+
+	struct sockaddr_in remote_addr; //客户端网络地址结构体
+	int sin_size = sizeof(struct sockaddr_in);
+
 	while (size != 0)
 	{
-		err = recv(sock, (char*)buf + index, size, 0);
-		if (err == SOCKET_ERROR) return -1;
+		err = recvfrom(sock, (char*)buf + index, size, 0, (struct sockaddr *)&remote_addr, &sin_size);
+		if (err == SOCKET_ERROR) 
+			return -1;
 		else if (err == 0) return -1;
 		size -= err;
 		index += err;

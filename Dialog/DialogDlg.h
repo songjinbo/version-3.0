@@ -51,7 +51,7 @@ protected:
 	DWORD ThreadID_get_image;
 	void InitWindow(CStatic *, CStatic *);
 	void InitVariable();
-	bool BuildConnection(SOCKET &,SOCKET &);
+	bool BuildConnection(SOCKET &);
 	LRESULT DisplayImage(WPARAM wParam, LPARAM lParam);
 	LRESULT UpdateStatus(WPARAM wParam, LPARAM lParam);
 

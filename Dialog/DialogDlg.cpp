@@ -220,7 +220,7 @@ Position position;
 int count_voxel_file = 1;//用于对体素化的数据进行计数
 
 //getimage线程与主线程的接口变量
-SOCKET sockConn,sockRrv;
+SOCKET sockConn;
 
 //pathplan线程与主线程的接口
 double start_and_end[6]; //传给路径规划模块,有冲突隐患
@@ -246,7 +246,7 @@ void CDialogDlg::OnBnClickedStart()
 	GetDlgItem(IDC_START)->EnableWindow(FALSE);
 	//初始化过程，可以多次点击展示
 	InitVariable();
-	bool succe = BuildConnection(sockRrv, sockConn);
+	bool succe = BuildConnection(sockConn);
 	if (!succe)
 	{
 		GetDlgItem(IDC_START)->EnableWindow(TRUE);
@@ -304,36 +304,35 @@ void CDialogDlg::InitVariable()
 
 	progress_status == is_stopped;
 }
-bool CDialogDlg::BuildConnection(SOCKET &sockRrv, SOCKET &sockConn)
+
+//UDP协议socket
+bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 {
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	int err;
-	SOCKADDR_IN addrSrv;
-	SOCKADDR_IN addrClient;
-	int len;
-	wVersionRequested = MAKEWORD(1, 1);
-	err = WSAStartup(wVersionRequested, &wsaData);
-	sockRrv = socket(AF_INET, SOCK_STREAM, 0);
-	addrSrv.sin_addr.S_un.S_addr = htonl(INADDR_ANY);//  
-	addrSrv.sin_port = htons(6001); //端口号 
-	addrSrv.sin_family = AF_INET;  //固定参数
-	bind(sockRrv, (SOCKADDR *)&addrSrv, sizeof(SOCKADDR));  //固定流程，绑定端口号
-	listen(sockRrv, 5);  //第二个参数应该是客户端连接的最大数
-	len = sizeof(SOCKADDR);
+	wVersionRequested = MAKEWORD(2, 2);
+	WSAStartup(wVersionRequested, &wsaData);
 
-	int rcv_size = 310 * 1024; //310K的缓冲区
-	err = setsockopt(sockRrv, SOL_SOCKET, SO_RCVBUF, (char *)&rcv_size, sizeof(rcv_size));
-	if (err<0){
-		closesocket(sockRrv);
-		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("建立缓冲区错误"));
-		return 0;//代表返回正常值
+	struct sockaddr_in my_addr;   //服务器网络地址结构体
+	memset(&my_addr, 0, sizeof(my_addr)); //数据初始化--清零
+	my_addr.sin_family = AF_INET; //设置为IP通信
+	my_addr.sin_addr.s_addr = INADDR_ANY;//服务器IP地址--允许连接到所有本地地址上
+	my_addr.sin_port = htons(8000); //服务器端口号
+	/*创建服务器端套接字--IPv4协议，面向无连接通信，UDP协议*/
+	if ((sockRrv = socket(PF_INET, SOCK_DGRAM, 0))<0)
+	{
+		perror("socket");
+		return 1;
 	}
-	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("等待连接"));
-	sockConn = accept(sockRrv, (SOCKADDR *)&addrClient, &len); //固定流程 
-	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("连接成功"));
+	/*将套接字绑定到服务器的网络地址上*/
+	if (bind(sockRrv, (struct sockaddr *)&my_addr, sizeof(struct sockaddr))<0)
+	{
+		perror("bind");
+		return 1;
+	}
 	return 1;
 }
+
 
 char*display_window_name[2] = { "view_left", "view_depth" }; //这个变量不需要更改
 void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)

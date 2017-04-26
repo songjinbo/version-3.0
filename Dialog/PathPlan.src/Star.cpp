@@ -412,7 +412,7 @@ bool Star::Creatgraph()
 	}
 	else
 	{
-		path_plan_status = no_path_accessible;
+		//path_plan_status = no_path_accessible;
 	}
 
 	//Çå¿Õvoxel_x,voxel_y.voxel_z
@@ -550,7 +550,7 @@ bool Star::Find_path(Node3D * node)
 	}
 	else
 	{
-		path_plan_status = no_path_accessible;
+		//path_plan_status = no_path_accessible;
 		return 0;
 	}
 	/////////////////////
