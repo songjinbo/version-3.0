@@ -202,8 +202,6 @@ HCURSOR CDialogDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-
 /**********************************************************/
 
 using namespace cv;
@@ -343,7 +341,6 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 	return 1;
 }
 
-
 char*display_window_name[2] = { "view_left", "view_depth" }; //这个变量不需要更改
 void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 {
@@ -467,7 +464,7 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		waitKey(1); //必须要有的，不能忘记
 		critical_single_rawdata.Unlock();
 		
-		Sleep(50);
+		Sleep(5); //仅仅是为了放慢处理速度
 
 		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);	
 		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功获得一条路径"));
@@ -484,11 +481,9 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 	return 1;
 }
 
-
 extern volatile get_image_ret_code get_image_status;
 LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 {
-	GetDlgItem(IDC_START)->EnableWindow(FALSE);
 	if (wParam == receive_error)
 	{
 		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，接收错误"));
@@ -599,8 +594,5 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		m_dabandon_frames = abandon_count;
 		UpdateData(FALSE);
 	}
-
-	GetDlgItem(IDC_START)->EnableWindow(TRUE);
-
 	return 1;
 }
