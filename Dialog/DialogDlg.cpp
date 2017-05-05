@@ -209,7 +209,7 @@ HCURSOR CDialogDlg::OnQueryDragIcon()
 using namespace cv;
 using namespace std;
 
-#define MAXA 6400
+#define MAXA 3200
 #define PI 3.1415926
 
 //主线程与三个子线程的接口
@@ -437,7 +437,6 @@ void Label(Mat & left, double px, double py, double pz)
 
 	circle(left, cvPoint(x, y), 2, CV_RGB(255, 0, 0), 3, 8, 0);   //paint point
 }
-extern int missBlockCount;
 LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 {
 	if (wParam == subpath_accessible) //显示图片的消息
