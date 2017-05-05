@@ -79,6 +79,7 @@ public:
 	double m_drunning_time;
 	afx_msg void OnBnClickedStop();
 	double m_drece_frames;
+	double m_dabandon_frames;
 };
 
 enum ProgressStatus
@@ -89,6 +90,9 @@ enum ProgressStatus
 	complete,
 
 	//GetImage函数的状态标志位
+	wrong_IP,
+	wrong_length,
+	wrong_frame,
 	get_image_is_running,
 	get_image_is_stopped,
 	get_image_complete,
@@ -137,7 +141,6 @@ struct attitude_data
 };
 struct MulDataStream
 {
-	char head[5];
 	int count;
 
 	int image_time_stamp;
@@ -147,5 +150,4 @@ struct MulDataStream
 
 	gps_data posi;
 	attitude_data attitude;
-	char tail[5];
 };

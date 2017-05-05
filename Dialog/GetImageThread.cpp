@@ -12,7 +12,7 @@
 #include "DialogDlg.h"
 #include "GetImageThread.h"
 #include "GetVoxelThread.h"
-
+#include <cerrno>
 
 IMPLEMENT_DYNCREATE(GetImageThread, CWinThread)
 
@@ -57,6 +57,8 @@ extern int rece_count;
 extern volatile ProgressStatus progress_status;//标志进程的运行状态，0是暂停，1是进行
 volatile get_image_ret_code get_image_status = get_image_is_running; //标志这一GetImage函数是否已经结束
 
+
+
 string itos(double i)
 {
 	stringstream ss;
@@ -75,16 +77,25 @@ LPCWSTR stringToLPCWSTR(std::string orig)
 	mbstowcs_s(&convertedChars, wcstring, origsize, orig.c_str(), _TRUNCATE);
 	return wcstring;
 }
-int RecvData(SOCKET sock, void *buf, int size);
+
+//udp接收数据函数的返回值
+enum ERRCODE
+{
+	RCVERROR_IP = 1,
+	RCVERROR_LEN,
+	RCVERROR_BLOCK,
+	SNDERROR,
+	SUCCESS,
+};
+
+ERRCODE RecvData(SOCKET sock, char *buf, int size);
 
 void GetImageThread::GetImage(UINT wParam, LONG lParam)
 {
 	get_image_status = get_image_is_running;//每次调用此函数先得置标志位
 
 	const int length = sizeof(MulDataStream);
-	char data_stream[length]; //接收传输的char *
-	memset(data_stream, '0', length);
-	MulDataStream data; //将data_stream的数据排列为MulDataStream
+	MulDataStream data; //接收socket数据
 	memset(&data, 0, length);
 
 	//程序临时变量
@@ -97,36 +108,31 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 		if ((progress_status == is_stopped) || (progress_status == complete))
 		{
 			closesocket(sockConn);
-			//closesocket(sockRrv);
 			get_image_status = get_image_is_stopped;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
 		}
-
-		memset(data_stream, 0, length);
-		int ret = RecvData(sockConn, data_stream, length);
-		if (ret < 0)
+		ERRCODE ret = RecvData(sockConn, (char *)&data, length);
+		if (ret == RCVERROR_IP)
 		{
 			closesocket(sockConn);
-			//closesocket(sockRrv);
-			get_image_status = receive_error;
+			get_image_status = wrong_IP;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
 		}
-		if (!strncmp(data_stream, "send error!", 11))
+		else if (ret == RCVERROR_LEN)
 		{
 			closesocket(sockConn);
-			//closesocket(sockRrv);
-			get_image_status = send_error;
+			get_image_status = wrong_length;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
 		}
-		std::memcpy(&data, data_stream, length);
-		if (strncmp(data.head, "head", 5) || strncmp(data.tail, "tail", 5)) //检查首尾的校验码是否正确
+		else if (ret == RCVERROR_BLOCK)
 		{
-			get_image_status = data_error;
+			closesocket(sockConn);
+			get_image_status = wrong_frame;
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
-			continue;
+			return;
 		}
 		rece_count++;
 		std::memcpy(depth_image.data, data.depth, WIDTH*HEIGHT * 2);
@@ -146,24 +152,145 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 		critical_rawdata.Unlock();
 	}
 }
-//读取size个Byte的数据
-int RecvData(SOCKET sock, void *buf, int size)
+
+
+#define MAXLEN 1200
+struct RCVUNIT
 {
-	int sum = size;
+	int count;
+	int index;
+	char data[MAXLEN];
+};
+struct SNDUNIT
+{
+	int count;
+	char data[6];
+};
+char client_IP[] = { "192.168.3.33" }; //客户端IP地址
+
+extern int abandon_count; //计数漏掉的数据报数目
+//读取size个Byte的数据
+ERRCODE RecvData(SOCKET sock, char *buf, int size)
+{
 	int err;
-	int index = 0;
+	RCVUNIT data;
 
-	struct sockaddr_in remote_addr; //客户端网络地址结构体
-	int sin_size = sizeof(struct sockaddr_in);
+	struct sockaddr_in client_addr; //接收客户端地址
+	int sin_size = sizeof(struct sockaddr);
+	
+	int BlockNum = (size % MAXLEN)? size/MAXLEN+1:size/MAXLEN;//分片的数目
+	
+	bool *isRcv = new bool[BlockNum];  //每一片是否到来的标志位，防止丢帧；
+	for (int j = 0; j < BlockNum; j++)
+		isRcv[j] = 0;
 
-	while (size != 0)
+	//clock_t start, end;
+	//if (xcount == 1)
+	//	start = clock();
+	//LARGE_INTEGER m_liPerfFreq = { 0 };
+	//QueryPerformanceFrequency(&m_liPerfFreq);
+	//LARGE_INTEGER m_liPerfStart = { 0 };
+	//if (xcount == 1)
+	//{
+	//	QueryPerformanceCounter(&m_liPerfStart);
+	//}
+	int count = -1;//第count帧;
+	for (int i = 0; i < BlockNum; i++)
 	{
-		err = recvfrom(sock, (char*)buf + index, size, 0, (struct sockaddr *)&remote_addr, &sin_size);
-		if (err == SOCKET_ERROR) 
-			return -1;
-		else if (err == 0) return -1;
-		size -= err;
-		index += err;
+		//接收一片
+		err = recvfrom(sock, (char *)&data, sizeof(RCVUNIT), 0, (struct sockaddr *)&client_addr, &sin_size);
+		if (err != sizeof(RCVUNIT))
+			return RCVERROR_LEN;
+		if (strncmp(inet_ntoa(client_addr.sin_addr), client_IP, sizeof(client_IP))) //验证源IP地址是否正确
+			return RCVERROR_IP;
+		if (i == 0)
+			count = data.count;
+		else if (data.count > count) //后帧传送过来，直接丢弃本帧
+		{
+			abandon_count++;
+			i = 0;
+			count = data.count;
+			for (int j = 0; j < BlockNum; j++)
+				isRcv[j] = 0;
+		}
+		else if (data.count < count) //前帧的数据报延时传送至目的地，直接忽略；
+		{
+			i--;
+			continue;
+		}
+		//对接收片登记
+		isRcv[data.index] = 1;
+		//将接收数据按照片的实际顺序拷贝到缓冲区中
+		if (data.index < size / MAXLEN)
+			memcpy(buf + data.index*MAXLEN, data.data, MAXLEN);
+		else
+			memcpy(buf + data.index*MAXLEN, data.data, size - data.index*MAXLEN);
 	}
-	return sum - size;
+	//LARGE_INTEGER liPerfNow = { 0 };
+	//QueryPerformanceCounter(&liPerfNow);
+	//int time;
+	//if (xcount == 100)
+	//{
+	//	time = ((double)(liPerfNow.QuadPart - m_liPerfStart.QuadPart)*1000.0) / (double)(m_liPerfFreq.QuadPart);
+	//	while (1);
+	//}
+	//if (xcount == 100)
+	//{
+	//	end = clock();
+	//	double t = (double)(end - start) / CLOCKS_PER_SEC;
+	//	while (1);
+	//}
+	//发送接收完成标志
+	
+	//SNDUNIT snd_buf;
+	//snd_buf.count = count;
+	//strcpy(snd_buf.data ,"over");
+	//sendto(sock, (char *)&snd_buf, sizeof(SNDUNIT), 0, (struct sockaddr *)&client_addr, sin_size);
+
+	return SUCCESS;
 }
+
+
+/********************************************/
+/*一帧分成很多片，每接收一帧，发送一个应答*/
+/********************************************/
+//#define MAXLEN 1200
+//struct RCVUNIT
+//{
+//	int index;
+//	char data[MAXLEN];
+//};
+//char client_IP[] = { "192.168.3.33" }; //客户端IP地址
+////读取size个Byte的数据
+//ERRCODE RecvData(SOCKET sock, char *buf, int size)
+//{
+//	int err;
+//	RCVUNIT data;
+//	char rcv_stream[sizeof(RCVUNIT)];
+//	struct sockaddr_in client_addr;
+//	int sin_size = sizeof(struct sockaddr);
+//	for (int i = 0; i < size / MAXLEN + 1; i++)
+//	{
+//		//接收一片
+//		err = recvfrom(sock,rcv_stream, sizeof(RCVUNIT), 0, (struct sockaddr *)&client_addr, &sin_size);
+//		if (err != sizeof(RCVUNIT))
+//			return RCVERROR;
+//		string tmp = inet_ntoa(client_addr.sin_addr);
+//		if (strncmp(inet_ntoa(client_addr.sin_addr), client_IP, sizeof(client_IP)))
+//			return RCVERROR;
+//		memcpy(&data, rcv_stream, sizeof(RCVUNIT));
+//		if (data.index != i)
+//			return RCVERROR;
+//		//发送应答信号
+//		int ack_index = i;
+//		err = sendto(sock, (char *)&ack_index, sizeof(ack_index), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
+//		if (err != sizeof(ack_index))
+//			return SNDERROR;
+//
+//		if (i != size / MAXLEN)
+//			memcpy(buf + i*MAXLEN, data.data, MAXLEN);
+//		else
+//			memcpy(buf + i*MAXLEN, data.data, size - i*MAXLEN);
+//	}
+//	return SUCCESS;
+//}

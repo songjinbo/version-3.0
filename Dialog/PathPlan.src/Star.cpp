@@ -413,6 +413,8 @@ bool Star::Creatgraph()
 	else
 	{
 		//path_plan_status = no_path_accessible;
+		path_plan_status = subpath_accessible;
+		is_first_frame = 1;
 	}
 
 	//Çå¿Õvoxel_x,voxel_y.voxel_z
@@ -551,6 +553,8 @@ bool Star::Find_path(Node3D * node)
 	else
 	{
 		//path_plan_status = no_path_accessible;
+		path_plan_status = subpath_accessible;
+		is_first_frame = 1;
 		return 0;
 	}
 	/////////////////////

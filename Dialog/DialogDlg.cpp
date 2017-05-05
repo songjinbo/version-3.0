@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <queue>
 #include <fstream>
+#include <fcntl.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "Dialog.h"
@@ -73,6 +74,7 @@ CDialogDlg::CDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_drunning_time(0)
 	, m_dfinish_frames(0)
 	, m_drece_frames(0)
+	, m_dabandon_frames(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -99,6 +101,7 @@ void CDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_FINISH_FRAMES, m_dfinish_frames);
 	DDX_Text(pDX, IDC_RUNNING_TIME, m_drunning_time);
 	DDX_Text(pDX, IDC_RECE_FRAMES, m_drece_frames);
+	DDX_Text(pDX, IDC_ABANDON_FRAMES, m_dabandon_frames);
 }
 
 BEGIN_MESSAGE_MAP(CDialogDlg, CDialogEx)
@@ -233,6 +236,7 @@ vector<Mat> vec_depth;
 vector<Mat> vec_left;
 vector<Position> vec_position;
 int rece_count = 0;
+int abandon_count = 0;
 
 //getvoxel线程与pathplan线程的接口变量
 vector<double> voxel_x; //GetVoxelThread的输出,PathPlanThread的输入
@@ -297,6 +301,7 @@ void CDialogDlg::InitVariable()
 	vec_left.clear();
 	vec_position.clear();
 	rece_count = 0;
+	abandon_count = 0;
 	//getvoxel与pathplan的接口
 	voxel_x.clear();
 	voxel_y.clear();
@@ -319,7 +324,7 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 	my_addr.sin_addr.s_addr = INADDR_ANY;//服务器IP地址--允许连接到所有本地地址上
 	my_addr.sin_port = htons(8000); //服务器端口号
 	/*创建服务器端套接字--IPv4协议，面向无连接通信，UDP协议*/
-	if ((sockRrv = socket(PF_INET, SOCK_DGRAM, 0))<0)
+	if ((sockRrv = socket(AF_INET, SOCK_DGRAM, 0))<0)
 	{
 		perror("socket");
 		return 1;
@@ -330,6 +335,11 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 		perror("bind");
 		return 1;
 	}
+	//设置接收缓冲区大小
+	const int rcv_size = 310 * 1024*4;
+	setsockopt(sockRrv, SOL_SOCKET, SO_SNDBUF, (char *)&rcv_size, sizeof(rcv_size));
+
+	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("等待连接"));
 	return 1;
 }
 
@@ -374,6 +384,7 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_RUNNING_TIME)->SetFont(&poseFont);
 	GetDlgItem(IDC_FINISH_FRAMES)->SetFont(&poseFont);
 	GetDlgItem(IDC_RECE_FRAMES)->SetFont(&poseFont);
+	GetDlgItem(IDC_ABANDON_FRAMES)->SetFont(&poseFont);
 
 	//设置静态文本框的文字格式
 	staticFont.CreateFont(18, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Arial"));
@@ -385,6 +396,8 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_STATIC_PITCH)->SetFont(&staticFont);
 	GetDlgItem(IDC_STATIC_RUNNING_TIME)->SetFont(&staticFont);
 	GetDlgItem(IDC_STATIC_FINISH_FRAMES)->SetFont(&staticFont);
+	GetDlgItem(IDC_STATIC_RECE_FRAMES)->SetFont(&staticFont);
+	GetDlgItem(IDC_STATIC_ABANDON_FRAMES)->SetFont(&staticFont);
 
 	GetDlgItem(IDC_STOP)->EnableWindow(FALSE);//开始stop按钮不可用
 	GetDlgItem(IDC_START)->EnableWindow(TRUE);//开始stop按钮不可用
@@ -424,7 +437,7 @@ void Label(Mat & left, double px, double py, double pz)
 
 	circle(left, cvPoint(x, y), 2, CV_RGB(255, 0, 0), 3, 8, 0);   //paint point
 }
-
+extern int missBlockCount;
 LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 {
 	if (wParam == subpath_accessible) //显示图片的消息
@@ -464,12 +477,14 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		finish_time = clock();
 		double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
 		m_drunning_time = time;
-		m_dfinish_frames = count_voxel_file-1;
+		m_dfinish_frames = count_voxel_file - 1;
 		m_drece_frames = rece_count;
+		m_dabandon_frames = abandon_count;
 		UpdateData(FALSE);
 	}
 	return 1;
 }
+
 
 extern volatile get_image_ret_code get_image_status;
 LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
@@ -479,6 +494,24 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 	{
 		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，接收错误"));
 		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，接收错误"));
+		get_image_status = get_image_complete;
+	}
+	else if (wParam == wrong_IP)
+	{
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，IP地址错误"));
+		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，IP地址错误"));
+		get_image_status = get_image_complete;
+	}
+	else if (wParam == wrong_length)
+	{
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，接收长度错误"));
+		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，接收长度错误"));
+		get_image_status = get_image_complete;
+	}
+	else if (wParam == wrong_frame)
+	{
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，丢片错误"));
+		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，丢片错误"));
 		get_image_status = get_image_complete;
 	}
 	else if (wParam == send_error)
@@ -545,6 +578,7 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		m_drunning_time = time;
 		m_dfinish_frames = count_voxel_file-1;
 		m_drece_frames = rece_count;
+		m_dabandon_frames = abandon_count;
 		UpdateData(FALSE);
 	}
 	else if (wParam == no_path_accessible)
@@ -563,6 +597,7 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		m_drunning_time = time;
 		m_dfinish_frames = count_voxel_file-1;
 		m_drece_frames = rece_count;
+		m_dabandon_frames = abandon_count;
 		UpdateData(FALSE);
 	}
 
