@@ -305,7 +305,7 @@ void CDialogDlg::InitVariable()
 	voxel_y.clear();
 	voxel_z.clear();
 
-	progress_status == is_stopped;
+	progress_status = is_stopped;
 }
 
 //UDP–≠“Èsocket
