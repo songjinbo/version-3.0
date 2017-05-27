@@ -207,7 +207,7 @@ HCURSOR CDialogDlg::OnQueryDragIcon()
 using namespace cv;
 using namespace std;
 
-#define MAXA 3200
+#define MAXA 1600
 #define PI 3.1415926
 
 //主线程与三个子线程的接口
@@ -346,13 +346,26 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 {
 	this->SetWindowText(L"无人机智能飞行演示系统");
 	//创建窗口用来显示左相机图片
-	namedWindow(display_window_name[0], WINDOW_AUTOSIZE);
+	//namedWindow(display_window_name[0], WINDOW_AUTOSIZE);
+
+	namedWindow(display_window_name[0], WINDOW_NORMAL);
+	CRect rect;
+	CWnd *pWnd = GetDlgItem(IDC_DISPLAYLEFT);
+	pWnd->GetClientRect(&rect);
+	int height = rect.Height();
+	int width = rect.Width();
+	resizeWindow(display_window_name[0],width,height);
 	HWND hWnd_left = (HWND)cvGetWindowHandle(display_window_name[0]);
 	HWND hParent_left = ::GetParent(hWnd_left);
 	::ShowWindow(hParent_left, SW_HIDE); //原先用来显示的窗口消隐
 	::SetParent(hWnd_left, m_DisplayLeft->m_hWnd);//将显示画面附着在IDC_DISPLAYLEFT上
 	//创建窗口用来显示深度图
-	namedWindow(display_window_name[1], WINDOW_AUTOSIZE);
+	namedWindow(display_window_name[1], WINDOW_NORMAL);
+	pWnd = GetDlgItem(IDC_DISPLAYDEPTH);
+	pWnd->GetClientRect(&rect);
+	height = rect.Height();
+	width = rect.Width();
+	resizeWindow(display_window_name[1],width,height);
 	HWND hWnd_depth = (HWND)cvGetWindowHandle(display_window_name[1]);
 	HWND hParent_depth = ::GetParent(hWnd_depth);
 	::ShowWindow(hParent_depth, SW_HIDE);
@@ -463,8 +476,8 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		imshow(display_window_name[1], depth_image_cv8u);
 		waitKey(1); //必须要有的，不能忘记
 		critical_single_rawdata.Unlock();
-		
-		Sleep(5); //仅仅是为了放慢处理速度
+
+		//Sleep(5); //仅仅是为了放慢处理速度
 
 		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);	
 		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功获得一条路径"));
