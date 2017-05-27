@@ -75,6 +75,7 @@ CDialogDlg::CDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_dfinish_frames(0)
 	, m_drece_frames(0)
 	, m_dabandon_frames(0)
+	, m_dtransfer_speed(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -102,6 +103,7 @@ void CDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_RUNNING_TIME, m_drunning_time);
 	DDX_Text(pDX, IDC_RECE_FRAMES, m_drece_frames);
 	DDX_Text(pDX, IDC_ABANDON_FRAMES, m_dabandon_frames);
+	DDX_Text(pDX, IDC_ABANDON_TRANSFER_SPEED, m_dtransfer_speed);
 }
 
 BEGIN_MESSAGE_MAP(CDialogDlg, CDialogEx)
@@ -235,13 +237,15 @@ vector<Mat> vec_left;
 vector<Position> vec_position;
 int rece_count = 0;
 int abandon_count = 0;
+static int receive_frames = 0; //接收的总帧数
 
 //getvoxel线程与pathplan线程的接口变量
 vector<double> voxel_x; //GetVoxelThread的输出,PathPlanThread的输入
 vector<double> voxel_y;
 vector<double> voxel_z;
 
-clock_t start_time, finish_time; //这两个变量分别存储运行开始时间和结束时间
+clock_t start_time, finish_time,last_time; //这两个变量分别存储运行开始时间和结束时间
+
 
 void CDialogDlg::OnBnClickedStart()
 {
@@ -266,6 +270,7 @@ void CDialogDlg::OnBnClickedStart()
 	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("正在运行"));//清空状态栏
 	
 	start_time = clock();
+	last_time = start_time;
 }
 void CDialogDlg::OnBnClickedStop()
 {
@@ -300,6 +305,7 @@ void CDialogDlg::InitVariable()
 	vec_position.clear();
 	rece_count = 0;
 	abandon_count = 0;
+	receive_frames = 0;
 	//getvoxel与pathplan的接口
 	voxel_x.clear();
 	voxel_y.clear();
@@ -447,6 +453,7 @@ void Label(Mat & left, double px, double py, double pz)
 
 	circle(left, cvPoint(x, y), 2, CV_RGB(255, 0, 0), 3, 8, 0);   //paint point
 }
+
 LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 {
 	if (wParam == subpath_accessible) //显示图片的消息
@@ -462,7 +469,7 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		double yaw_angle = double(int(position.yaw * 180 / PI * 1000)) / 1000; //变成角度，保留小数点后三位
 		double roll_angle = double(int(position.roll * 180 / PI * 1000)) / 1000;
 		double pitch_angle = double(int(position.pitch * 180 / PI * 1000)) / 1000;
-		
+
 		m_dx = x;
 		m_dy = y;
 		m_dz = z;
@@ -479,7 +486,7 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 
 		//Sleep(5); //仅仅是为了放慢处理速度
 
-		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);	
+		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
 		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功获得一条路径"));
 
 		//显示运行的时间和总帧数
@@ -489,7 +496,15 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		m_dfinish_frames = count_voxel_file - 1;
 		m_drece_frames = rece_count;
 		m_dabandon_frames = abandon_count;
-		UpdateData(FALSE);
+		if ((finish_time - last_time) / CLOCKS_PER_SEC < 0.2)
+			UpdateData(FALSE);
+		else
+		{
+			m_dtransfer_speed = (rece_count + abandon_count - receive_frames) / ((finish_time - last_time) / CLOCKS_PER_SEC);
+			last_time = finish_time;//更新起始时间
+			receive_frames = rece_count + abandon_count;//更新接收的总帧数
+			UpdateData(FALSE);
+		}
 	}
 	return 1;
 }
@@ -586,7 +601,16 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		m_dfinish_frames = count_voxel_file-1;
 		m_drece_frames = rece_count;
 		m_dabandon_frames = abandon_count;
-		UpdateData(FALSE);
+		if ((finish_time - last_time) / CLOCKS_PER_SEC < 0.2)
+			UpdateData(FALSE);
+		else
+		{
+			m_dtransfer_speed = (rece_count + abandon_count - receive_frames) / ((finish_time - last_time) / CLOCKS_PER_SEC);
+			last_time = finish_time;//更新起始时间
+			receive_frames = rece_count + abandon_count;//更新接收的总帧数
+			UpdateData(FALSE);
+		}
+
 	}
 	else if (wParam == no_path_accessible)
 	{
@@ -605,7 +629,15 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		m_dfinish_frames = count_voxel_file-1;
 		m_drece_frames = rece_count;
 		m_dabandon_frames = abandon_count;
-		UpdateData(FALSE);
+		if ((finish_time - last_time) / CLOCKS_PER_SEC < 0.2)
+			UpdateData(FALSE);
+		else
+		{
+			m_dtransfer_speed = (rece_count + abandon_count - receive_frames) / ((finish_time - last_time) / CLOCKS_PER_SEC);
+			last_time = finish_time;//更新起始时间
+			receive_frames = rece_count + abandon_count;//更新接收的总帧数
+			UpdateData(FALSE);
+		}
 	}
 	return 1;
 }

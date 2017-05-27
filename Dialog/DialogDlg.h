@@ -80,6 +80,8 @@ public:
 	afx_msg void OnBnClickedStop();
 	double m_drece_frames;
 	double m_dabandon_frames;
+	afx_msg void OnStnClickedStaticAbandonFrames2();
+	double m_dtransfer_speed;
 };
 
 enum ProgressStatus
