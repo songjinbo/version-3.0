@@ -548,8 +548,13 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 	}
 	else if (wParam == no_data_in_queue)
 	{
-		GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("GetVoxel函数正在等待"));
-		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
+		CString txt;
+		GetDlgItemText(IDC_STATUS_GETVOXEL, txt);
+		if (txt != _T("GetVoxel函数正在等待"))
+		{
+			GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("GetVoxel函数正在等待"));
+			m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
+		}
 	}
 	else if (wParam == no_voxel_in_queue)
 	{
@@ -629,7 +634,7 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		m_dfinish_frames = count_voxel_file-1;
 		m_drece_frames = rece_count;
 		m_dabandon_frames = abandon_count;
-		if ((finish_time - last_time) / CLOCKS_PER_SEC < 0.2)
+		if ((finish_time - last_time) / CLOCKS_PER_SEC < 1.0)
 			UpdateData(FALSE);
 		else
 		{
