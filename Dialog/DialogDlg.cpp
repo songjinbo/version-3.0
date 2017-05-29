@@ -486,7 +486,7 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		waitKey(1); //必须要有的，不能忘记
 		critical_single_rawdata.Unlock();
 
-		Sleep(20); //仅仅是为了放慢处理速度
+		//Sleep(20); //仅仅是为了放慢处理速度
 
 		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
 		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功获得一条路径"));
