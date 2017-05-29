@@ -184,16 +184,6 @@ ERRCODE RecvData(SOCKET sock, char *buf, int size)
 	for (int j = 0; j < BlockNum; j++)
 		isRcv[j] = 0;
 
-	//clock_t start, end;
-	//if (xcount == 1)
-	//	start = clock();
-	//LARGE_INTEGER m_liPerfFreq = { 0 };
-	//QueryPerformanceFrequency(&m_liPerfFreq);
-	//LARGE_INTEGER m_liPerfStart = { 0 };
-	//if (xcount == 1)
-	//{
-	//	QueryPerformanceCounter(&m_liPerfStart);
-	//}
 	int count = -1;//第count帧;
 	for (int i = 0; i < BlockNum; i++)
 	{
@@ -226,71 +216,5 @@ ERRCODE RecvData(SOCKET sock, char *buf, int size)
 		else
 			memcpy(buf + data.index*MAXLEN, data.data, size - data.index*MAXLEN);
 	}
-	//LARGE_INTEGER liPerfNow = { 0 };
-	//QueryPerformanceCounter(&liPerfNow);
-	//int time;
-	//if (xcount == 100)
-	//{
-	//	time = ((double)(liPerfNow.QuadPart - m_liPerfStart.QuadPart)*1000.0) / (double)(m_liPerfFreq.QuadPart);
-	//	while (1);
-	//}
-	//if (xcount == 100)
-	//{
-	//	end = clock();
-	//	double t = (double)(end - start) / CLOCKS_PER_SEC;
-	//	while (1);
-	//}
-	//发送接收完成标志
-	
-	//SNDUNIT snd_buf;
-	//snd_buf.count = count;
-	//strcpy(snd_buf.data ,"over");
-	//sendto(sock, (char *)&snd_buf, sizeof(SNDUNIT), 0, (struct sockaddr *)&client_addr, sin_size);
-
 	return SUCCESS;
 }
-
-
-/********************************************/
-/*一帧分成很多片，每接收一帧，发送一个应答*/
-/********************************************/
-//#define MAXLEN 1200
-//struct RCVUNIT
-//{
-//	int index;
-//	char data[MAXLEN];
-//};
-//char client_IP[] = { "192.168.3.33" }; //客户端IP地址
-////读取size个Byte的数据
-//ERRCODE RecvData(SOCKET sock, char *buf, int size)
-//{
-//	int err;
-//	RCVUNIT data;
-//	char rcv_stream[sizeof(RCVUNIT)];
-//	struct sockaddr_in client_addr;
-//	int sin_size = sizeof(struct sockaddr);
-//	for (int i = 0; i < size / MAXLEN + 1; i++)
-//	{
-//		//接收一片
-//		err = recvfrom(sock,rcv_stream, sizeof(RCVUNIT), 0, (struct sockaddr *)&client_addr, &sin_size);
-//		if (err != sizeof(RCVUNIT))
-//			return RCVERROR;
-//		string tmp = inet_ntoa(client_addr.sin_addr);
-//		if (strncmp(inet_ntoa(client_addr.sin_addr), client_IP, sizeof(client_IP)))
-//			return RCVERROR;
-//		memcpy(&data, rcv_stream, sizeof(RCVUNIT));
-//		if (data.index != i)
-//			return RCVERROR;
-//		//发送应答信号
-//		int ack_index = i;
-//		err = sendto(sock, (char *)&ack_index, sizeof(ack_index), 0, (struct sockaddr *)&client_addr, sizeof(client_addr));
-//		if (err != sizeof(ack_index))
-//			return SNDERROR;
-//
-//		if (i != size / MAXLEN)
-//			memcpy(buf + i*MAXLEN, data.data, MAXLEN);
-//		else
-//			memcpy(buf + i*MAXLEN, data.data, size - i*MAXLEN);
-//	}
-//	return SUCCESS;
-//}

@@ -103,7 +103,7 @@ void CDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_RUNNING_TIME, m_drunning_time);
 	DDX_Text(pDX, IDC_RECE_FRAMES, m_drece_frames);
 	DDX_Text(pDX, IDC_ABANDON_FRAMES, m_dabandon_frames);
-	DDX_Text(pDX, IDC_ABANDON_TRANSFER_SPEED, m_dtransfer_speed);
+	DDX_Text(pDX, IDC_TRANSFER_SPEED, m_dtransfer_speed);
 }
 
 BEGIN_MESSAGE_MAP(CDialogDlg, CDialogEx)
@@ -401,6 +401,7 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_FINISH_FRAMES)->SetFont(&poseFont);
 	GetDlgItem(IDC_RECE_FRAMES)->SetFont(&poseFont);
 	GetDlgItem(IDC_ABANDON_FRAMES)->SetFont(&poseFont);
+	GetDlgItem(IDC_TRANSFER_SPEED)->SetFont(&poseFont);
 
 	//设置静态文本框的文字格式
 	staticFont.CreateFont(18, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Arial"));
@@ -414,6 +415,7 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_STATIC_FINISH_FRAMES)->SetFont(&staticFont);
 	GetDlgItem(IDC_STATIC_RECE_FRAMES)->SetFont(&staticFont);
 	GetDlgItem(IDC_STATIC_ABANDON_FRAMES)->SetFont(&staticFont);
+	GetDlgItem(IDC_STATIC_TRANSFER_SPEED)->SetFont(&staticFont);
 
 	GetDlgItem(IDC_STOP)->EnableWindow(FALSE);//开始stop按钮不可用
 	GetDlgItem(IDC_START)->EnableWindow(TRUE);//开始stop按钮不可用
@@ -553,8 +555,8 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		if (txt != _T("GetVoxel函数正在等待"))
 		{
 			GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("GetVoxel函数正在等待"));
-			m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
 		}
+		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
 	}
 	else if (wParam == no_voxel_in_queue)
 	{
