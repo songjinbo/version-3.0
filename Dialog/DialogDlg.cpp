@@ -553,8 +553,8 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		if (txt != _T("GetVoxel函数正在等待"))
 		{
 			GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("GetVoxel函数正在等待"));
-			m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
 		}
+		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
 	}
 	else if (wParam == no_voxel_in_queue)
 	{
