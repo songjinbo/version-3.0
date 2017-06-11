@@ -17,6 +17,7 @@
 #include "GetVoxelThread.h"
 #include "..\\SkinSharp\\SkinH.h"
 
+#include "base.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -466,6 +467,8 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		depth_image.convertTo(depth_32S, CV_32SC1);
 		depth_32S = depth_32S * 255 / MAXA;
 		depth_32S.convertTo(depth_image_cv8u, CV_8UC1);
+		Mat depth_color(depth_image_cv8u.rows, depth_image_cv8u.cols, CV_8UC3);
+		Pseudocolor(depth_image_cv8u, depth_color);
 
 		double x = double(int(position.x * 1000)) / 1000; double y = double(int(position.y * 1000)) / 1000; double z = double(int(position.z * 1000)) / 1000;//保留小数点后三位
 		double yaw_angle = double(int(position.yaw * 180 / PI * 1000)) / 1000; //变成角度，保留小数点后三位
@@ -482,7 +485,7 @@ LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 		Label(left_image, subEndx, subEndy, subEndz);
 
 		imshow(display_window_name[0], left_image);
-		imshow(display_window_name[1], depth_image_cv8u);
+		imshow(display_window_name[1], depth_color);
 		waitKey(1); //必须要有的，不能忘记
 		critical_single_rawdata.Unlock();
 
