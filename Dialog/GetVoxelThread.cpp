@@ -135,12 +135,12 @@ void GetVoxelThread::GetVoxel(UINT wParam, LONG lParam)
 		//将队列中的数据弹出到变量中
 		critical_rawdata.Lock();
 		critical_single_rawdata.Lock();
-		left_image = vec_left.front();
-		vec_left.erase(vec_left.begin());
-		position = vec_position.front();
-		vec_position.erase(vec_position.begin());
-		depth_image = vec_depth.front();
-		vec_depth.erase(vec_depth.begin());
+		left_image = vec_left.back();
+		vec_left.clear();
+		position = vec_position.back();
+		vec_position.clear();
+		depth_image = vec_depth.back();
+		vec_depth.clear();
 		critical_single_rawdata.Unlock();
 		critical_rawdata.Unlock();
 

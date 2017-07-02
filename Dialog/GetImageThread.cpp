@@ -57,8 +57,6 @@ extern int rece_count;
 extern volatile ProgressStatus progress_status;//标志进程的运行状态，0是暂停，1是进行
 volatile get_image_ret_code get_image_status = get_image_is_running; //标志这一GetImage函数是否已经结束
 
-
-
 string itos(double i)
 {
 	stringstream ss;
