@@ -341,7 +341,7 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 	}
 	//设置接收缓冲区大小
 	const int rcv_size = 310 * 1024*4;
-	setsockopt(sockRrv, SOL_SOCKET, SO_SNDBUF, (char *)&rcv_size, sizeof(rcv_size));
+	setsockopt(sockRrv, SOL_SOCKET, SO_RCVBUF, (char *)&rcv_size, sizeof(rcv_size));
 
 	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("等待连接"));
 	return 1;
