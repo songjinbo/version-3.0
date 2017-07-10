@@ -224,7 +224,8 @@ Position position;
 int count_voxel_file = 1;//用于对体素化的数据进行计数
 
 //getimage线程与主线程的接口变量
-SOCKET sockConn;
+SOCKET sockConn; //传输图像套接字
+SOCKET sockTCP;//传输指令套接字
 
 //pathplan线程与主线程的接口
 double start_and_end[6]; //传给路径规划模块,有冲突隐患
@@ -247,18 +248,28 @@ vector<double> voxel_z;
 
 clock_t start_time, finish_time,last_time; //这两个变量分别存储运行开始时间和结束时间
 
-
 void CDialogDlg::OnBnClickedStart()
 {
+	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T(""));
+	GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T(""));
+	GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T(""));
+	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T(""));//清空状态栏
 	GetDlgItem(IDC_START)->EnableWindow(FALSE);
 	//初始化过程，可以多次点击展示
 	InitVariable();
+	//UDP套接字，传输图像
 	bool succe = BuildConnection(sockConn);
 	if (!succe)
 	{
 		GetDlgItem(IDC_START)->EnableWindow(TRUE);
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("UDP连接不成功"));
+		GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("UDP连接不成功"));
+		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("UDP连接不成功"));
+		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("UDP连接不成功"));//清空状态栏
 		return;
 	}
+	//TCP套接字，传输指令
+	BuildConnectionTCP(sockTCP);//连接TCP，直到成功连接为止
 
 	progress_status = is_ruuning;
 	GetDlgItem(IDC_STOP)->EnableWindow(TRUE);
@@ -315,8 +326,8 @@ void CDialogDlg::InitVariable()
 	progress_status = is_stopped;
 }
 
-//UDP协议socket
-bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
+//UDP协议socket,服务器端
+bool CDialogDlg::BuildConnection(SOCKET &sockRrv) //UDP连接，自上到下的传输
 {
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -326,6 +337,7 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 	struct sockaddr_in my_addr;   //服务器网络地址结构体
 	memset(&my_addr, 0, sizeof(my_addr)); //数据初始化--清零
 	my_addr.sin_family = AF_INET; //设置为IP通信
+	//my_addr.sin_addr.s_addr = INADDR_ANY;//服务器IP地址--允许连接到所有本地地址上
 	my_addr.sin_addr.s_addr = INADDR_ANY;//服务器IP地址--允许连接到所有本地地址上
 	my_addr.sin_port = htons(8000); //服务器端口号
 	/*创建服务器端套接字--IPv4协议，面向无连接通信，UDP协议*/
@@ -344,8 +356,50 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv)
 	const int rcv_size = 310 * 1024*4;
 	setsockopt(sockRrv, SOL_SOCKET, SO_RCVBUF, (char *)&rcv_size, sizeof(rcv_size));
 
-	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("等待连接"));
+	GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("等待UDP连接"));
+	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("等待UDP连接"));
+	GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("等待UDP连接"));
+	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("等待UDP连接"));
+	
 	return 1;
+}
+//TCP协议socket,客户端
+bool CDialogDlg::BuildConnectionTCP(SOCKET &socketClient)
+{
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	wVersionRequested = MAKEWORD(1, 1);
+	int err;
+	err = WSAStartup(wVersionRequested, &wsaData);
+	if (err != 0)
+	{
+		return 0;
+	}
+	if (LOBYTE(wsaData.wVersion) != 1 || HIBYTE(wsaData.wVersion) != 1)
+	{
+		WSACleanup();
+		return 0;
+	}
+
+	//建立通讯socket  
+	socketClient = socket(AF_INET, SOCK_STREAM, 0);
+
+	SOCKADDR_IN addrSrv;
+	addrSrv.sin_addr.S_un.S_addr = inet_addr("192.168.3.33");//设定需要连接的服务器的ip地址  
+	addrSrv.sin_family = AF_INET;
+	addrSrv.sin_port = htons(5000);//设定需要连接的服务器的端口地址  
+	//bool res = connect(socketClient, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR));//与服务器进行连接  
+	//return res==0 ? 1:0;
+
+	GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("正在连接TCP"));
+	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("正在连接TCP"));
+	GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("正在连接TCP"));
+	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("正在连接TCP"));
+	while (connect(socketClient, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)) != 0)//与服务器进行连接  
+	{
+		Sleep(2000); //两秒钟重新连接一次
+	}
+	return 0;
 }
 
 char*display_window_name[2] = { "view_left", "view_depth" }; //这个变量不需要更改
@@ -594,14 +648,45 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("运行结束，体素化完毕"));
 		m_ppath_plan_thread->PostThreadMessage(WM_PATHPLAN_BEGIN, NULL, NULL);
 	}
+	else if (wParam == TCP_break_off)
+	{
+		progress_status = complete;
+		GetDlgItem(IDC_STOP)->EnableWindow(FALSE);
+		GetDlgItem(IDC_START)->EnableWindow(TRUE);
+
+		GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("TCP连接断开"));
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("TCP连接断开"));
+		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("TCP连接断开"));
+		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("TCP连接断开"));
+		GetDlgItem(IDC_START)->SetWindowTextW(_T("开始"));
+
+		//显示运行的时间和总帧数
+		finish_time = clock();
+		double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
+		m_drunning_time = time;
+		m_dfinish_frames = count_voxel_file - 1;
+		m_drece_frames = rece_count;
+		m_dabandon_frames = abandon_count;
+		if ((finish_time - last_time) / CLOCKS_PER_SEC < 1.0)
+			UpdateData(FALSE);
+		else
+		{
+			m_dtransfer_speed = (rece_count + abandon_count - receive_frames) / ((finish_time - last_time) / CLOCKS_PER_SEC);
+			last_time = finish_time;//更新起始时间
+			receive_frames = rece_count + abandon_count;//更新接收的总帧数
+			UpdateData(FALSE);
+		}
+	}
 	else if (wParam == path_accessible)
 	{
 		progress_status = complete;
 		GetDlgItem(IDC_STOP)->EnableWindow(FALSE);
 		GetDlgItem(IDC_START)->EnableWindow(TRUE);
 
-		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("运行结束，找到路径"));
-		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，找到路径"));
+		//GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("成功找到路径"));
+		//GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("成功找到路径"));
+		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功找到路径"));
+		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("成功找到路径"));
 		GetDlgItem(IDC_START)->SetWindowTextW(_T("开始"));
 	
 		//显示运行的时间和总帧数
@@ -628,6 +713,8 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		GetDlgItem(IDC_STOP)->EnableWindow(FALSE);
 		GetDlgItem(IDC_START)->EnableWindow(TRUE);
 
+		GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("运行结束，未找到路径"));
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，未找到路径"));
 		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("运行结束，未找到路径"));
 		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，未找到路径"));
 		GetDlgItem(IDC_START)->SetWindowTextW(_T("开始"));

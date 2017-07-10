@@ -52,6 +52,7 @@ protected:
 	void InitWindow(CStatic *, CStatic *);
 	void InitVariable();
 	bool BuildConnection(SOCKET &);
+	bool BuildConnectionTCP(SOCKET &);
 	LRESULT DisplayImage(WPARAM wParam, LPARAM lParam);
 	LRESULT UpdateStatus(WPARAM wParam, LPARAM lParam);
 
@@ -110,6 +111,7 @@ enum ProgressStatus
 	get_all_voxel_complete,
 
 	//PathPlan函数的状态标志位
+	TCP_break_off,
 	path_plan_is_running,
 	path_plan_is_stopped,
 	no_voxel_in_queue,
