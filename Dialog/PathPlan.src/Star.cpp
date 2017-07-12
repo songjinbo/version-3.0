@@ -61,7 +61,10 @@ extern volatile get_voxel_ret_code get_voxel_status;
 //主要函数，Creategraph函数调用Find_path函数，Find_path函数调用searchchNode函数
 //Creategraph函数被findpath函数调用，findpath函数又被main函数调用
 
-extern SOCKET sockTCP;//传输指令套接字
+extern SOCKET sockCommand;//传输指令套接字
+extern SOCKADDR_IN  addrServ;
+ofstream outfile("out.txt", ios::out);//此文件用来保存传输时间
+
 enum CONTROL
 {
 	TAKEOFF = 1,
@@ -79,24 +82,9 @@ struct COMMAND
 	int argc; //参数的个数
 	float argv[5]; //命令的参数,参数的意义根据指令的不同而不同
 };
-bool SendData(SOCKET &sock, void *buf, int size)
-{
-	int err;
-	int index = 0;
-	while (size != 0)
-	{
-		err = send(sock, (char*)buf + index, size, 0);
-		if (err == -1) break;
-		else if (err == 0) break;
-		size -= err;
-		index += err;
-	}
-	return size == 0;
-}
+
 
 Node3D old_end;// 保存上一帧的终点坐标作为这一帧的起点
-
-ofstream outfile("out.txt",ios::out);
 bool Star::Creatgraph()
 {
 	path_plan_status = path_plan_is_running; //首先置状态标志位
@@ -136,7 +124,7 @@ bool Star::Creatgraph()
 	{
 		if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 		{
-			closesocket(sockTCP);
+			closesocket(sockCommand);
 			path_plan_status = path_plan_is_stopped;
 			return 0;
 		}
@@ -203,7 +191,7 @@ bool Star::Creatgraph()
 			{
 				if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 				{
-					closesocket(sockTCP);
+					closesocket(sockCommand);
 					path_plan_status = path_plan_is_stopped;
 					for (k = 0; k<zDepth; k++)
 					{
@@ -241,7 +229,7 @@ bool Star::Creatgraph()
 	{
 		if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 		{
-			closesocket(sockTCP);
+			closesocket(sockCommand);
 			path_plan_status = path_plan_is_stopped;
 			for (k = 0; k<zDepth; k++)
 			{
@@ -287,7 +275,7 @@ bool Star::Creatgraph()
 				{
 					if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 					{
-						closesocket(sockTCP);
+						closesocket(sockCommand);
 						path_plan_status = path_plan_is_stopped;
 						for (k = 0; k<zDepth; k++)
 						{
@@ -369,7 +357,7 @@ bool Star::Creatgraph()
 	{
 		if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 		{
-			closesocket(sockTCP);
+			closesocket(sockCommand);
 			path_plan_status = path_plan_is_stopped;
 			for (k = 0; k<zDepth; k++)
 			{
@@ -460,12 +448,12 @@ bool Star::Creatgraph()
 
 		clock_t start, end;
 		start = clock();
-		bool isSuccess = SendData(sockTCP, &command, sizeof(COMMAND));
+		int isSuccess = sendto(sockCommand, (char *)&command, sizeof(struct COMMAND), 0, (struct sockaddr *)&addrServ, sizeof(addrServ));
 		end = clock();
 		outfile << "发送第" << count_voxel_file << "帧数据的时间：" << end - start << std::endl;
-		if (!isSuccess)
+		if (isSuccess != sizeof(struct COMMAND))//发送出错
 		{
-			closesocket(sockTCP);
+			closesocket(sockCommand);
 			path_plan_status = TCP_break_off;
 			for (k = 0; k<zDepth; k++)
 			{
@@ -556,7 +544,7 @@ bool Star::Find_path(Node3D * node)
 					{
 						if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 						{
-							closesocket(sockTCP);
+							closesocket(sockCommand);
 							path_plan_status = path_plan_is_stopped;
 							return 0;
 						}
@@ -590,7 +578,7 @@ bool Star::Find_path(Node3D * node)
 		{
 			if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 			{
-				closesocket(sockTCP);
+				closesocket(sockCommand);
 				path_plan_status = path_plan_is_stopped;
 				return 0;
 			}
@@ -615,7 +603,7 @@ bool Star::Find_path(Node3D * node)
 			{
 				if (progress_status == is_stopped) //循环检测标志位progress_status，这一步必须要有，postquitmessage()无法立即结束外层for循环
 				{
-					closesocket(sockTCP);
+					closesocket(sockCommand);
 					path_plan_status = path_plan_is_stopped;
 					return 0;
 				}

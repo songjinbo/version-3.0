@@ -52,7 +52,7 @@ protected:
 	void InitWindow(CStatic *, CStatic *);
 	void InitVariable();
 	bool BuildConnection(SOCKET &);
-	bool BuildConnectionTCP(SOCKET &);
+	bool BuildConnectionCommand(SOCKET &);
 	LRESULT DisplayImage(WPARAM wParam, LPARAM lParam);
 	LRESULT UpdateStatus(WPARAM wParam, LPARAM lParam);
 

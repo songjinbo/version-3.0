@@ -225,7 +225,8 @@ int count_voxel_file = 1;//用于对体素化的数据进行计数
 
 //getimage线程与主线程的接口变量
 SOCKET sockConn; //传输图像套接字
-SOCKET sockTCP;//传输指令套接字
+SOCKET sockCommand;//传输指令套接字
+SOCKADDR_IN  addrServ;
 
 //pathplan线程与主线程的接口
 double start_and_end[6]; //传给路径规划模块,有冲突隐患
@@ -269,7 +270,7 @@ void CDialogDlg::OnBnClickedStart()
 		return;
 	}
 	//TCP套接字，传输指令
-	BuildConnectionTCP(sockTCP);//连接TCP，直到成功连接为止
+	BuildConnectionCommand(sockCommand);//连接TCP，直到成功连接为止
 
 	progress_status = is_ruuning;
 	GetDlgItem(IDC_STOP)->EnableWindow(TRUE);
@@ -363,44 +364,71 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv) //UDP连接，自上到下的传输
 	
 	return 1;
 }
+
 //TCP协议socket,客户端
-bool CDialogDlg::BuildConnectionTCP(SOCKET &socketClient)
+bool CDialogDlg::BuildConnectionCommand(SOCKET &socketClient)
 {
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	wVersionRequested = MAKEWORD(1, 1);
 	int err;
+	wVersionRequested = MAKEWORD(2, 2);
 	err = WSAStartup(wVersionRequested, &wsaData);
-	if (err != 0)
-	{
+	if (err != 0) {
+		printf("WSAStartup failed with error: %d\n", err);
 		return 0;
 	}
-	if (LOBYTE(wsaData.wVersion) != 1 || HIBYTE(wsaData.wVersion) != 1)
-	{
+	if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
+		printf("Could not find a usable version of Winsock.dll\n");
 		WSACleanup();
 		return 0;
 	}
 
-	//建立通讯socket  
-	socketClient = socket(AF_INET, SOCK_STREAM, 0);
+	socketClient = socket(AF_INET, SOCK_DGRAM, 0);
 
-	SOCKADDR_IN addrSrv;
-	addrSrv.sin_addr.S_un.S_addr = inet_addr("192.168.3.33");//设定需要连接的服务器的ip地址  
-	addrSrv.sin_family = AF_INET;
-	addrSrv.sin_port = htons(5000);//设定需要连接的服务器的端口地址  
-	//bool res = connect(socketClient, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR));//与服务器进行连接  
-	//return res==0 ? 1:0;
+	addrServ.sin_addr.S_un.S_addr = inet_addr("192.168.3.33");
+	addrServ.sin_family = AF_INET;
+	addrServ.sin_port = htons(5000);
 
-	GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("正在连接TCP"));
-	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("正在连接TCP"));
-	GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("正在连接TCP"));
-	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("正在连接TCP"));
-	while (connect(socketClient, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)) != 0)//与服务器进行连接  
-	{
-		Sleep(2000); //两秒钟重新连接一次
-	}
-	return 0;
+	return 1;
 }
+
+//bool CDialogDlg::BuildConnectionCommand(SOCKET &socketClient)
+//{
+//	WORD wVersionRequested;
+//	WSADATA wsaData;
+//	wVersionRequested = MAKEWORD(1, 1);
+//	int err;
+//	err = WSAStartup(wVersionRequested, &wsaData);
+//	if (err != 0)
+//	{
+//		return 0;
+//	}
+//	if (LOBYTE(wsaData.wVersion) != 1 || HIBYTE(wsaData.wVersion) != 1)
+//	{
+//		WSACleanup();
+//		return 0;
+//	}
+//
+//	//建立通讯socket  
+//	socketClient = socket(AF_INET, SOCK_STREAM, 0);
+//
+//	SOCKADDR_IN addrSrv;
+//	addrSrv.sin_addr.S_un.S_addr = inet_addr("192.168.3.33");//设定需要连接的服务器的ip地址  
+//	addrSrv.sin_family = AF_INET;
+//	addrSrv.sin_port = htons(5000);//设定需要连接的服务器的端口地址  
+//	//bool res = connect(socketClient, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR));//与服务器进行连接  
+//	//return res==0 ? 1:0;
+//
+//	GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("正在连接TCP"));
+//	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("正在连接TCP"));
+//	GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("正在连接TCP"));
+//	GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("正在连接TCP"));
+//	while (connect(socketClient, (SOCKADDR*)&addrSrv, sizeof(SOCKADDR)) != 0)//与服务器进行连接  
+//	{
+//		Sleep(2000); //两秒钟重新连接一次
+//	}
+//	return 0;
+//}
 
 char*display_window_name[2] = { "view_left", "view_depth" }; //这个变量不需要更改
 void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)

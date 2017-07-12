@@ -152,7 +152,7 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 }
 
 
-#define MAXLEN 12000
+#define MAXLEN 1200
 struct RCVUNIT
 {
 	int count;
