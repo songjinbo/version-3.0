@@ -53,16 +53,14 @@ extern vector<Mat> vec_left;
 extern vector<Position> vec_position;
 extern volatile get_image_ret_code get_image_status;
 
-extern CCriticalSection critical_single_rawdata;//与主线程DisplayImage函数的接口
-extern cv::Mat depth_image;
-extern cv::Mat left_image;
-extern Position position;
-
 extern volatile ProgressStatus progress_status;
 
 extern vector<double> voxel_x;//与线程PathPlan的接口
 extern vector<double> voxel_y;
 extern vector<double> voxel_z;
+extern double currentX;
+extern double currentY;
+extern double currentZ;
 
 extern int count_voxel_file;
 
@@ -125,6 +123,10 @@ void outputStatistics(const OcTree* tree){   //show size of tree
 
 void GetVoxelThread::GetVoxel(UINT wParam, LONG lParam)
 {
+	Mat depth_image;
+	Mat left_image;
+	Position position;
+
 	get_voxel_status = get_voxel_is_running; //先置标志位
 	
 	//从queue中取出一帧数据
@@ -134,14 +136,17 @@ void GetVoxelThread::GetVoxel(UINT wParam, LONG lParam)
 	{
 		//将队列中的数据弹出到变量中
 		critical_rawdata.Lock();
-		critical_single_rawdata.Lock();
+		//critical_single_rawdata.Lock();
 		left_image = vec_left.back();
 		vec_left.clear();
 		position = vec_position.back();
+		currentX = position.x;
+		currentY = position.y;
+		currentZ = position.z;
 		vec_position.clear();
 		depth_image = vec_depth.back();
 		vec_depth.clear();
-		critical_single_rawdata.Unlock();
+		//critical_single_rawdata.Unlock();
 		critical_rawdata.Unlock();
 
 		std::ofstream outfile(logFilename);

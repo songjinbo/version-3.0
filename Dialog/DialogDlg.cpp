@@ -112,7 +112,6 @@ BEGIN_MESSAGE_MAP(CDialogDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_START, &CDialogDlg::OnBnClickedStart)
-	ON_MESSAGE(WM_DISPLAY_IMAGE, DisplayImage)
 	ON_MESSAGE(WM_UPDATE_STATUS, UpdateStatus)
 	ON_BN_CLICKED(IDC_STOP, &CDialogDlg::OnBnClickedStop)
 END_MESSAGE_MAP()
@@ -216,39 +215,42 @@ using namespace std;
 //主线程与三个子线程的接口
 volatile ProgressStatus progress_status = is_stopped; //有冲突隐患
 
-//getvoxel线程与主线程的接口变量
-CCriticalSection critical_single_rawdata;//控制depth_iamge、left_image和position的访问
-Mat depth_image;
-Mat left_image;
-Position position;
-int count_voxel_file = 1;//用于对体素化的数据进行计数
-
-//getimage线程与主线程的接口变量
+//----------getimage线程与主线程的接口变量----------------//
 SOCKET sockConn; //传输图像套接字
-SOCKET sockCommand;//传输指令套接字
-SOCKADDR_IN  addrServ;
+CCriticalSection critical_single_rawdata;
+cv::Mat depth_image(HEIGHT, WIDTH, CV_16SC1);
+cv::Mat left_image(HEIGHT, WIDTH, CV_8U);
+Position position;
 
-//pathplan线程与主线程的接口
-double start_and_end[6]; //传给路径规划模块,有冲突隐患
-bool is_first_frame=1;//是否是第一帧
-double subEndx, subEndy, subEndz; //用来做标注的数据
-
-//getimage线程与getvoxel线程的接口变量
-CCriticalSection critical_rawdata;//控制vec_depth、vec_left和vec_position的访问
-vector<Mat> vec_depth;
-vector<Mat> vec_left;
-vector<Position> vec_position;
 int rece_count = 0;
 int abandon_count = 0;
 static int receive_frames = 0; //接收的总帧数
 
-//getvoxel线程与pathplan线程的接口变量
+//-----------getvoxel线程与主线程的接口变量---------------//
+int count_voxel_file = 1;//用于对体素化的数据进行计数
+
+//--------------pathplan线程与主线程的接口----------------//
+double start_and_end[6]; //传给路径规划模块,有冲突隐患
+bool is_first_frame=1;//是否是第一帧
+double subEndx, subEndy, subEndz; //用来做标注的数据
+SOCKET sockCommand;//传输指令套接字
+SOCKADDR_IN  addrServ;
+
+//----------getimage线程与getvoxel线程的接口变量----------//
+CCriticalSection critical_rawdata;//控制vec_depth、vec_left和vec_position的访问
+vector<Mat> vec_depth;
+vector<Mat> vec_left;
+vector<Position> vec_position;
+
+//----------getvoxel线程与pathplan线程的接口变量----------//
 vector<double> voxel_x; //GetVoxelThread的输出,PathPlanThread的输入
 vector<double> voxel_y;
 vector<double> voxel_z;
+double currentX;
+double currentY;
+double currentZ;
 
 clock_t start_time, finish_time,last_time; //这两个变量分别存储运行开始时间和结束时间
-
 void CDialogDlg::OnBnClickedStart()
 {
 	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T(""));
@@ -298,8 +300,8 @@ void CDialogDlg::InitVariable()
 {
 	//主线程与三个子线程的接口
 	//与getvoxel线程的接口
-	depth_image = Mat(Scalar(0));
-	left_image = Mat(Scalar(0));
+	//depth_image = Mat(HEIGHT,WIDTH,Scalar(0));
+	//left_image = Mat(Scalar(0));
 	position.x = position.y = position.z = position.pitch = position.yaw = position.roll = 0;
 	//与getvoxel线程的接口
 	count_voxel_file = 1;
@@ -541,58 +543,51 @@ void Label(Mat & left, double px, double py, double pz)
 
 LRESULT CDialogDlg::DisplayImage(WPARAM wParam, LPARAM lParam)
 {
-	if (wParam == subpath_accessible) //显示图片的消息
+	critical_single_rawdata.Lock();
+	Mat depth_32S;//CV_16S显示成图片会有问题，需转化为8U
+	Mat depth_image_cv8u;
+	depth_image.convertTo(depth_32S, CV_32SC1);
+	depth_32S = depth_32S * 255 / MAXA;
+	depth_32S.convertTo(depth_image_cv8u, CV_8UC1);
+	Mat depth_color(depth_image_cv8u.rows, depth_image_cv8u.cols, CV_8UC3);
+	Pseudocolor(depth_image_cv8u, depth_color);
+
+	double x = double(int(position.x * 1000)) / 1000; double y = double(int(position.y * 1000)) / 1000; double z = double(int(position.z * 1000)) / 1000;//保留小数点后三位
+	double yaw_angle = double(int(position.yaw * 180 / PI * 1000)) / 1000; //变成角度，保留小数点后三位
+	double roll_angle = double(int(position.roll * 180 / PI * 1000)) / 1000;
+	double pitch_angle = double(int(position.pitch * 180 / PI * 1000)) / 1000;
+
+	m_dx = x;
+	m_dy = y;
+	m_dz = z;
+	m_droll = roll_angle;
+	m_dpitch = pitch_angle;
+	m_dyaw = roll_angle;
+	UpdateData(false);         // 更新数据
+	//Label(left_image, subEndx, subEndy, subEndz);
+
+	imshow(display_window_name[0], left_image);
+	imshow(display_window_name[1], depth_color);
+	waitKey(1); //必须要有的，不能忘记
+	critical_single_rawdata.Unlock();
+
+	//显示运行的时间和总帧数
+	finish_time = clock();
+	double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
+	m_drunning_time = time;
+	m_dfinish_frames = count_voxel_file - 1;
+	m_drece_frames = rece_count;
+	m_dabandon_frames = abandon_count;
+	if ((finish_time - last_time) / CLOCKS_PER_SEC < 0.2)
+		UpdateData(FALSE);
+	else
 	{
-		critical_single_rawdata.Lock();
-		Mat depth_32S;//CV_16S显示成图片会有问题，需转化为8U
-		Mat depth_image_cv8u;
-		depth_image.convertTo(depth_32S, CV_32SC1);
-		depth_32S = depth_32S * 255 / MAXA;
-		depth_32S.convertTo(depth_image_cv8u, CV_8UC1);
-		Mat depth_color(depth_image_cv8u.rows, depth_image_cv8u.cols, CV_8UC3);
-		Pseudocolor(depth_image_cv8u, depth_color);
-
-		double x = double(int(position.x * 1000)) / 1000; double y = double(int(position.y * 1000)) / 1000; double z = double(int(position.z * 1000)) / 1000;//保留小数点后三位
-		double yaw_angle = double(int(position.yaw * 180 / PI * 1000)) / 1000; //变成角度，保留小数点后三位
-		double roll_angle = double(int(position.roll * 180 / PI * 1000)) / 1000;
-		double pitch_angle = double(int(position.pitch * 180 / PI * 1000)) / 1000;
-
-		m_dx = x;
-		m_dy = y;
-		m_dz = z;
-		m_droll = roll_angle;
-		m_dpitch = pitch_angle;
-		m_dyaw = roll_angle;
-		UpdateData(false);         // 更新数据
-		Label(left_image, subEndx, subEndy, subEndz);
-
-		imshow(display_window_name[0], left_image);
-		imshow(display_window_name[1], depth_color);
-		waitKey(1); //必须要有的，不能忘记
-		critical_single_rawdata.Unlock();
-
-		//Sleep(5); //仅仅是为了放慢处理速度
-
-		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
-		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功获得一条路径"));
-
-		//显示运行的时间和总帧数
-		finish_time = clock();
-		double time = double(finish_time - start_time) / CLOCKS_PER_SEC;
-		m_drunning_time = time;
-		m_dfinish_frames = count_voxel_file - 1;
-		m_drece_frames = rece_count;
-		m_dabandon_frames = abandon_count;
-		if ((finish_time - last_time) / CLOCKS_PER_SEC < 0.2)
-			UpdateData(FALSE);
-		else
-		{
-			m_dtransfer_speed = (rece_count + abandon_count - receive_frames) / ((finish_time - last_time) / CLOCKS_PER_SEC);
-			last_time = finish_time;//更新起始时间
-			receive_frames = rece_count + abandon_count;//更新接收的总帧数
-			UpdateData(FALSE);
-		}
+		m_dtransfer_speed = (rece_count + abandon_count - receive_frames) / ((finish_time - last_time) / CLOCKS_PER_SEC);
+		last_time = finish_time;//更新起始时间
+		receive_frames = rece_count + abandon_count;//更新接收的总帧数
+		UpdateData(FALSE);
 	}
+
 	return 1;
 }
 
@@ -604,6 +599,11 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("运行结束，接收错误"));
 		GetDlgItem(IDC_STATUS)->SetWindowTextW(_T("运行结束，接收错误"));
 		get_image_status = get_image_complete;
+	}
+	else if (wParam == get_one_image)
+	{
+		DisplayImage(NULL, NULL);
+		GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("接收一帧完成"));
 	}
 	else if (wParam == wrong_IP)
 	{
@@ -704,6 +704,16 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 			receive_frames = rece_count + abandon_count;//更新接收的总帧数
 			UpdateData(FALSE);
 		}
+	}
+	else if (wParam == subpath_accessible) //显示图片的消息
+	{
+		//Sleep(5); //仅仅是为了放慢处理速度
+		//将路径规划结果标注在图像上
+		Label(left_image, subEndx, subEndy, subEndz);
+		imshow(display_window_name[0], left_image);
+
+		m_pget_voxel_thread->PostThreadMessage(WM_GETVOXEL_BEGIN, NULL, NULL);
+		GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("成功获得一条路径"));
 	}
 	else if (wParam == path_accessible)
 	{

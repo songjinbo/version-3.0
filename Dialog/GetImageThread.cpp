@@ -54,6 +54,11 @@ extern vector<Mat> vec_left;
 extern vector<Position> vec_position;
 extern int rece_count;
 
+extern CCriticalSection critical_single_rawdata;
+extern cv::Mat depth_image;
+extern cv::Mat left_image;
+extern Position position;
+
 extern volatile ProgressStatus progress_status;//标志进程的运行状态，0是暂停，1是进行
 volatile get_image_ret_code get_image_status = get_image_is_running; //标志这一GetImage函数是否已经结束
 
@@ -96,11 +101,6 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 	MulDataStream data; //接收socket数据
 	memset(&data, 0, length);
 
-	//程序临时变量
-	cv::Mat depth_image(HEIGHT, WIDTH, CV_16SC1);
-	cv::Mat left_image(HEIGHT, WIDTH, CV_8U);
-	Position position;
-
 	while(1)
 	{
 		if ((progress_status == is_stopped) || (progress_status == complete))
@@ -132,8 +132,9 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 			::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 			return;
 		}
+		critical_single_rawdata.Lock();
 		rece_count++;
-		std::memcpy(depth_image.data, data.depth, WIDTH*HEIGHT * 2);
+		std::memcpy(depth_image.data, data.depth, WIDTH*HEIGHT*2);
 		std::memcpy(left_image.data, data.left, WIDTH*HEIGHT);
 		position.pitch = data.attitude.pitch;
 		position.roll = data.attitude.roll;
@@ -148,9 +149,12 @@ void GetImageThread::GetImage(UINT wParam, LONG lParam)
 		vec_left.push_back(left_image.clone());
 		vec_position.push_back(position);
 		critical_rawdata.Unlock();
+		critical_single_rawdata.Unlock();
+
+		get_image_status = get_one_image;
+		::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, get_image_status, NULL);
 	}
 }
-
 
 #define MAXLEN 1200
 struct RCVUNIT

@@ -44,6 +44,9 @@ extern double subEndx,subEndy,subEndz;
 extern vector<double> voxel_x; //本线程的输 入变量,GetVoxelTread的输出
 extern vector<double> voxel_y;
 extern vector<double> voxel_z;
+extern double currentX;
+extern double currentY;
+extern double currentZ;
 extern int count_voxel_file; //计数第几帧
 
 //本cpp文件中用到的变量
@@ -440,10 +443,10 @@ bool Star::Creatgraph()
 		
 		COMMAND command;
 		command.control = MOVE_BY_OFFSET;
-		command.argv[0] = subEndx;
-		command.argv[1] = subEndy;
-		command.argv[2] = subEndz;
-		command.argv[4] = 3000;
+		command.argv[0] = subEndx-currentX;
+		command.argv[1] = subEndy-currentY;
+		command.argv[2] = subEndz-currentZ;
+		command.argv[4] = 10000;
 		
 
 		clock_t start, end;

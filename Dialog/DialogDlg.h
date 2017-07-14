@@ -12,7 +12,7 @@
 #include "Resource.h"
 
 
-#define WM_DISPLAY_IMAGE WM_USER+2
+//#define WM_DISPLAY_IMAGE WM_USER+2
 #define WM_UPDATE_STATUS WM_USER+5
 
 // CDialogDlg 对话框
@@ -99,10 +99,12 @@ enum ProgressStatus
 	get_image_is_running,
 	get_image_is_stopped,
 	get_image_complete,
+	get_one_image,
 
 	data_error,
 	send_error,
 	receive_error,
+
 	//GetVoxel函数的状态标志位
 	get_voxel_is_running,
 	no_data_in_queue,

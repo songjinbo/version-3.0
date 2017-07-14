@@ -45,14 +45,6 @@ void PathPlanThread::PathPlan(UINT wParam, LONG lParam)
 	star.findpath();
 	//getchar();
 
-	if (path_plan_status == subpath_accessible)
-	{
-		::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_DISPLAY_IMAGE, path_plan_status, NULL);
-	}
-	else
-	{
-		::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, path_plan_status, NULL);
-	}
-	
+	::PostMessage((HWND)(GetMainWnd()->GetSafeHwnd()), WM_UPDATE_STATUS, path_plan_status, NULL);
 }
 // PathPlanThread 消息处理程序
