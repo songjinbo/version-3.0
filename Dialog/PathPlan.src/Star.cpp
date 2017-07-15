@@ -82,7 +82,7 @@ enum CONTROL
 struct COMMAND
 {
 	CONTROL control; //向无人机发送的哪种命令
-	int argc; //参数的个数
+	int count; //计数指令个数
 	float argv[5]; //命令的参数,参数的意义根据指令的不同而不同
 };
 
@@ -440,20 +440,25 @@ bool Star::Creatgraph()
 		subEndx = mediump[0];
 		subEndy = mediump[1];
 		subEndz = mediump[2];
-		
+
 		COMMAND command;
 		command.control = MOVE_BY_OFFSET;
-		command.argv[0] = subEndx-currentX;
-		command.argv[1] = subEndy-currentY;
-		command.argv[2] = subEndz-currentZ;
-		command.argv[4] = 10000;
+		//command.count = count_voxel_file;
+		//command.argv[0] = subEndx-currentX;
+		//command.argv[1] = subEndy-currentY;
+		//command.argv[2] = subEndz-currentZ;
+		//command.argv[4] = 10000;
 		
+		command.argv[0] = 1;
+		command.argv[1] = 1;
+		command.argv[2] = 0;
+		command.argv[4] = 1000;
 
 		clock_t start, end;
 		start = clock();
 		int isSuccess = sendto(sockCommand, (char *)&command, sizeof(struct COMMAND), 0, (struct sockaddr *)&addrServ, sizeof(addrServ));
 		end = clock();
-		outfile << "发送第" << count_voxel_file << "帧数据的时间：" << end - start << std::endl;
+		outfile << "发送第" << command.count << "帧数据的时间：" << end - start << std::endl;
 		if (isSuccess != sizeof(struct COMMAND))//发送出错
 		{
 			closesocket(sockCommand);

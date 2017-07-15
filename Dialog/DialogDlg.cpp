@@ -359,6 +359,20 @@ bool CDialogDlg::BuildConnection(SOCKET &sockRrv) //UDP连接，自上到下的传输
 	const int rcv_size = 310 * 1024*4;
 	setsockopt(sockRrv, SOL_SOCKET, SO_RCVBUF, (char *)&rcv_size, sizeof(rcv_size));
 
+	//int imode = 0; //1为非阻塞模式，0为阻塞模式
+	//int retVal = ioctlsocket(sockRrv, FIONBIO, (u_long *)&imode);
+	//if (retVal == SOCKET_ERROR)
+	//{
+	//	printf("ioctlsocket failed!");
+
+	//	closesocket(sockRrv);
+	//	WSACleanup();
+	//	return -1;
+	//}
+	////设置阻塞时间
+	//int nNetTimeout = 4000;//单位ms
+	//setsockopt(sockRrv, SOL_SOCKET, SO_RCVTIMEO, (const char*)&nNetTimeout, sizeof(int));
+
 	GetDlgItem(IDC_STATUS_GETVOXEL)->SetWindowTextW(_T("等待UDP连接"));
 	GetDlgItem(IDC_STATUS_GETIMAGE)->SetWindowTextW(_T("等待UDP连接"));
 	GetDlgItem(IDC_STATUS_PATHPLAN)->SetWindowTextW(_T("等待UDP连接"));
