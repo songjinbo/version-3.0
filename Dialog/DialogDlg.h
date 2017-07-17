@@ -83,6 +83,9 @@ public:
 	double m_dabandon_frames;
 	afx_msg void OnStnClickedStaticAbandonFrames2();
 	double m_dtransfer_speed;
+	double m_dresultx;
+	double m_dresulty;
+	double m_dresultz;
 };
 
 enum ProgressStatus

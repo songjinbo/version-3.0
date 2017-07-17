@@ -53,10 +53,7 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 END_MESSAGE_MAP()
 
-
 // CDialogDlg 对话框
-
-
 
 CDialogDlg::CDialogDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CDialogDlg::IDD, pParent)
@@ -77,6 +74,9 @@ CDialogDlg::CDialogDlg(CWnd* pParent /*=NULL*/)
 	, m_drece_frames(0)
 	, m_dabandon_frames(0)
 	, m_dtransfer_speed(0)
+	, m_dresultx(0)
+	, m_dresulty(0)
+	, m_dresultz(0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -105,6 +105,9 @@ void CDialogDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_RECE_FRAMES, m_drece_frames);
 	DDX_Text(pDX, IDC_ABANDON_FRAMES, m_dabandon_frames);
 	DDX_Text(pDX, IDC_TRANSFER_SPEED, m_dtransfer_speed);
+	DDX_Text(pDX, IDC_RESULTX, m_dresultx);
+	DDX_Text(pDX, IDC_RESULTY, m_dresulty);
+	DDX_Text(pDX, IDC_RESULTZ, m_dresultz);
 }
 
 BEGIN_MESSAGE_MAP(CDialogDlg, CDialogEx)
@@ -236,7 +239,7 @@ double subEndx, subEndy, subEndz; //用来做标注的数据
 SOCKET sockCommand;//传输指令套接字
 SOCKADDR_IN  addrServ;
 
-//----------getimage线程与getvoxel线程的接口变量----------//
+//----------主线程、getimage线程、getvoxel线程的接口变量----------//
 CCriticalSection critical_rawdata;//控制vec_depth、vec_left和vec_position的访问
 vector<Mat> vec_depth;
 vector<Mat> vec_left;
@@ -246,6 +249,8 @@ vector<Position> vec_position;
 vector<double> voxel_x; //GetVoxelThread的输出,PathPlanThread的输入
 vector<double> voxel_y;
 vector<double> voxel_z;
+
+//------------主线程、getvoxel和pathplan的接口------------//
 double currentX;
 double currentY;
 double currentZ;
@@ -487,6 +492,7 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_END_POSI)->SetFont(&groupFont);
 	GetDlgItem(IDC_POSE)->SetFont(&groupFont);
 	GetDlgItem(IDC_SENSOR_DATA)->SetFont(&groupFont);
+	GetDlgItem(IDC_RESULT)->SetFont(&groupFont);
 
 	//设置位姿数据的字体格式
 	poseFont.CreateFont(20, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Arial"));
@@ -501,6 +507,10 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_RECE_FRAMES)->SetFont(&poseFont);
 	GetDlgItem(IDC_ABANDON_FRAMES)->SetFont(&poseFont);
 	GetDlgItem(IDC_TRANSFER_SPEED)->SetFont(&poseFont);
+	GetDlgItem(IDC_RESULTX)->SetFont(&poseFont);
+	GetDlgItem(IDC_RESULTY)->SetFont(&poseFont);
+	GetDlgItem(IDC_RESULTZ)->SetFont(&poseFont);
+
 
 	//设置静态文本框的文字格式
 	staticFont.CreateFont(18, 0, 0, 0, FW_MEDIUM, FALSE, FALSE, 0, ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, _T("Arial"));
@@ -515,6 +525,9 @@ void CDialogDlg::InitWindow(CStatic *m_DisplayLeft, CStatic *m_DisplayDepth)
 	GetDlgItem(IDC_STATIC_RECE_FRAMES)->SetFont(&staticFont);
 	GetDlgItem(IDC_STATIC_ABANDON_FRAMES)->SetFont(&staticFont);
 	GetDlgItem(IDC_STATIC_TRANSFER_SPEED)->SetFont(&staticFont);
+	GetDlgItem(IDC_STATIC_RESULTX)->SetFont(&staticFont);
+	GetDlgItem(IDC_STATIC_RESULTY)->SetFont(&staticFont);
+	GetDlgItem(IDC_STATIC_RESULTZ)->SetFont(&staticFont);
 
 	GetDlgItem(IDC_STOP)->EnableWindow(FALSE);//开始stop按钮不可用
 	GetDlgItem(IDC_START)->EnableWindow(TRUE);//开始stop按钮不可用
@@ -721,7 +734,15 @@ LRESULT CDialogDlg::UpdateStatus(WPARAM wParam, LPARAM lParam)
 	}
 	else if (wParam == subpath_accessible) //显示图片的消息
 	{
+
+
 		//Sleep(5); //仅仅是为了放慢处理速度
+
+		m_dresultx = subEndx - currentX;
+		m_dresulty = subEndy - currentY;
+		m_dresultz = subEndz - currentZ;
+		UpdateData(false);
+
 		//将路径规划结果标注在图像上
 		Label(left_image, subEndx, subEndy, subEndz);
 		imshow(display_window_name[0], left_image);

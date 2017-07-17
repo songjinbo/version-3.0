@@ -443,7 +443,7 @@ bool Star::Creatgraph()
 
 		COMMAND command;
 		command.control = MOVE_BY_OFFSET;
-		//command.count = count_voxel_file;
+		command.count = count_voxel_file;
 		//command.argv[0] = subEndx-currentX;
 		//command.argv[1] = subEndy-currentY;
 		//command.argv[2] = subEndz-currentZ;
